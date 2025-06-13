@@ -1,188 +1,187 @@
-import loadBls from '@dashevo/bls';
-import {GetIdentityBalanceRequest, PlatformDefinition, StateId, CanonicalVote, SignedMsgType} from './platform.js'
-import {createChannel, createClient} from 'nice-grpc-web'
-import {base58} from "@scure/base";
-import fs from "fs";
-import {verifyIdentityBalanceForIdentityId, initSync} from './pkg/wasm/wasm_drive_verify.js'
-import * as wire from "@bufbuild/protobuf/wire"
-import sha256 from "sha256"
+import loadBls from '@dashevo/bls'
+import { GetIdentityBalanceRequest, PlatformDefinition, StateId, CanonicalVote, SignedMsgType } from './platform.js'
+import { createChannel, createClient } from 'nice-grpc-web'
+import { base58 } from '@scure/base'
+import fs from 'fs'
+import { verifyIdentityBalanceForIdentityId, initSync } from './pkg/wasm/wasm_drive_verify.js'
+import * as wire from '@bufbuild/protobuf/wire'
+import sha256 from 'sha256'
 
-async function getIdentityBalanceProof(identifier) {
-    const channel = createChannel('https://52.42.202.128:1443/')
+async function getIdentityBalanceProof (identifier) {
+  const channel = createChannel('https://52.42.202.128:1443/')
 
-    const client = createClient(PlatformDefinition, channel)
+  const client = createClient(PlatformDefinition, channel)
 
-    const getIdentityBalanceRequest = GetIdentityBalanceRequest.fromPartial({
-        v0: {
-            id: base58.decode(identifier), prove: true
-        }
-    })
-
-    const {v0} = await client.getIdentityBalance(getIdentityBalanceRequest)
-
-    const {proof, metadata} = v0
-
-    return {proof, metadata}
-}
-
-async function getRootHashForIdentityBalance(grovedbProof, identifier) {
-    const {root_hash: rootHash} = verifyIdentityBalanceForIdentityId(grovedbProof, base58.decode(identifier), true, 1)
-
-    return rootHash
-}
-
-async function getQuorumPublicKey(quorumType, quorumHash) {
-    // typically http://localhost:19998/
-    let baseUrl = "https://trpc.digitalcash.dev/";
-    let basicAuth = btoa(`user:pass`);
-    let payload = JSON.stringify({
-        "method": "quorum", "params": ["info", quorumType, quorumHash]
-    });
-    let resp = await fetch(baseUrl, {
-        method: "POST", headers: {
-            "Authorization": `Basic ${basicAuth}`, "Content-Type": "application/json",
-        }, body: payload,
-    });
-
-    let data = await resp.json();
-    if (data.error) {
-        let err = new Error(data.error.message);
-        Object.assign(err, data.error);
-        throw err;
+  const getIdentityBalanceRequest = GetIdentityBalanceRequest.fromPartial({
+    v0: {
+      id: base58.decode(identifier), prove: true
     }
-    return data.result;
+  })
+
+  const { v0 } = await client.getIdentityBalance(getIdentityBalanceRequest)
+
+  const { proof, metadata } = v0
+
+  return { proof, metadata }
 }
 
-function calculateStateIdHash(stateId) {
+async function getRootHashForIdentityBalance (grovedbProof, identifier) {
+  const { root_hash: rootHash } = verifyIdentityBalanceForIdentityId(grovedbProof, base58.decode(identifier), true, 1)
 
-    const encoded = StateId.encode(stateId).finish();
-
-    const writer = new wire.BinaryWriter();
-
-    writer.bytes(encoded);
-
-    return sha256(writer.finish(), {asBytes: true});
+  return rootHash
 }
 
-function signRequestId(prefix, height, round) {
-    const prefixBuf = Buffer.from(prefix, 'utf8');
+async function getQuorumPublicKey (quorumType, quorumHash) {
+  // typically http://localhost:19998/
+  const baseUrl = 'https://trpc.digitalcash.dev/'
+  const basicAuth = btoa('user:pass')
+  const payload = JSON.stringify({
+    method: 'quorum', params: ['info', quorumType, quorumHash]
+  })
+  const resp = await fetch(baseUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${basicAuth}`, 'Content-Type': 'application/json'
+    },
+    body: payload
+  })
 
-    // len + i64 + i32
-    const buf = Buffer.alloc(prefixBuf.length + 8 + 4);
-
-    prefixBuf.copy(buf, 0);
-    buf.writeBigInt64LE(height, prefixBuf.length);
-    buf.writeInt32LE(round, prefixBuf.length + 8);
-
-    return sha256(buf, {asBytes: true})
+  const data = await resp.json()
+  if (data.error) {
+    const err = new Error(data.error.message)
+    Object.assign(err, data.error)
+    throw err
+  }
+  return data.result
 }
 
-function calculateMsgHash(chainId, height, round, type, blockId, stateId) {
-    const fixedSize = 4 + 8 + 8 + 32 + 32;
-    const buf = Buffer.alloc(fixedSize + Buffer.byteLength(chainId));
+function calculateStateIdHash (stateId) {
+  const encoded = StateId.encode(stateId).finish()
 
-    let offset = 0;
+  const writer = new wire.BinaryWriter()
 
-    buf.writeInt32LE(type, offset);
-    offset += 4;
+  writer.bytes(encoded)
 
-    buf.writeBigInt64LE(height, offset);
-    offset += 8;
-
-    buf.writeBigInt64LE(BigInt(round), offset);
-    offset += 8;
-
-    Buffer.from(blockId).copy(buf, offset);
-    offset += 32;
-
-    Buffer.from(stateId).copy(buf, offset);
-    offset += 32;
-
-    if (offset !== fixedSize) {
-        throw new Error("Invalid input length while encoding sign bytes");
-    }
-
-    buf.write(chainId, offset, 'utf8');
-
-    return sha256(buf, {asBytes: true})
+  return sha256(writer.finish(), { asBytes: true })
 }
 
-function signHash(quorumType, quorumHash, requestId, signBytesHash) {
-    const buf = Buffer.concat([
-        Buffer.from([quorumType]),
-        Buffer.from(quorumHash).reverse(),
-        Buffer.from(requestId).reverse(),
-        Buffer.from(signBytesHash).reverse(),
-    ]);
+function signRequestId (prefix, height, round) {
+  const prefixBuf = Buffer.from(prefix, 'utf8')
 
-    return sha256(sha256(buf, {asBytes: true}), {asBytes: true})
+  // len + i64 + i32
+  const buf = Buffer.alloc(prefixBuf.length + 8 + 4)
+
+  prefixBuf.copy(buf, 0)
+  buf.writeBigInt64LE(height, prefixBuf.length)
+  buf.writeInt32LE(round, prefixBuf.length + 8)
+
+  return sha256(buf, { asBytes: true })
 }
 
-function calculateSignHash(commit, chainId, quorumType, quorumHash, height, round) {
-    const requestId = signRequestId('dpbvote', height, round)
-    const signBytesHash = calculateMsgHash(chainId, height, round, commit.type, commit.blockId, commit.stateId)
+function calculateMsgHash (chainId, height, round, type, blockId, stateId) {
+  const fixedSize = 4 + 8 + 8 + 32 + 32
+  const buf = Buffer.alloc(fixedSize + Buffer.byteLength(chainId))
 
-    return signHash(quorumType, quorumHash, requestId, signBytesHash);
+  let offset = 0
+
+  buf.writeInt32LE(type, offset)
+  offset += 4
+
+  buf.writeBigInt64LE(height, offset)
+  offset += 8
+
+  buf.writeBigInt64LE(BigInt(round), offset)
+  offset += 8
+
+  Buffer.from(blockId).copy(buf, offset)
+  offset += 32
+
+  Buffer.from(stateId).copy(buf, offset)
+  offset += 32
+
+  if (offset !== fixedSize) {
+    throw new Error('Invalid input length while encoding sign bytes')
+  }
+
+  buf.write(chainId, offset, 'utf8')
+
+  return sha256(buf, { asBytes: true })
 }
 
-async function verifyTenderdashProof(proof, metadata, rootHash, quorumPublicKey) {
-    const stateId = StateId.fromPartial({
-        appVersion: metadata.protocolVersion,
-        coreChainLockedHeight: metadata.coreChainLockedHeight,
-        time: metadata.timeMs,
-        appHash: rootHash,
-        height: metadata.height,
-    })
+function signHash (quorumType, quorumHash, requestId, signBytesHash) {
+  const buf = Buffer.concat([
+    Buffer.from([quorumType]),
+    Buffer.from(quorumHash).reverse(),
+    Buffer.from(requestId).reverse(),
+    Buffer.from(signBytesHash).reverse()
+  ])
 
-    const stateIdHash = calculateStateIdHash(stateId)
-
-    const commit = CanonicalVote.fromPartial({
-        type: SignedMsgType.PRECOMMIT,
-        blockId: proof.blockIdHash,
-        chainId: metadata.chainId,
-        height: BigInt(metadata.height),
-        round: proof.round,
-        stateId: stateIdHash
-    })
-
-    let signDigest = calculateSignHash(
-        commit,
-        metadata.chainId,
-        proof.quorumType,
-        proof.quorumHash,
-        BigInt(metadata.height),
-        proof.round,
-        SignedMsgType.PRECOMMIT,
-        proof.blockIdHash,
-        stateIdHash
-    )
-
-    const {signature} = proof;
-
-    const BLS = await loadBls();
-
-    let pubKey = BLS.G1Element.fromBytes(Buffer.from(quorumPublicKey, 'hex'))
-
-    let signatureElement = BLS.G2Element.fromBytes(signature)
-
-
-    return BLS.BasicSchemeMPL.verify(pubKey, Uint8Array.from(signDigest), signatureElement)
+  return sha256(sha256(buf, { asBytes: true }), { asBytes: true })
 }
 
-async function main() {
-    const wasm = initSync({module: fs.readFileSync("./pkg/wasm/wasm_drive_verify_bg.wasm")})
+function calculateSignHash (commit, chainId, quorumType, quorumHash, height, round) {
+  const requestId = signRequestId('dpbvote', height, round)
+  const signBytesHash = calculateMsgHash(chainId, height, round, commit.type, commit.blockId, commit.stateId)
 
-    const identifier = '8VKxmxaJpBetf372woNKu1znvGFg7iauBM1EynT6GF2h'
+  return signHash(quorumType, quorumHash, requestId, signBytesHash)
+}
 
-    const {proof, metadata} = await getIdentityBalanceProof(identifier)
+async function verifyTenderdashProof (proof, metadata, rootHash, quorumPublicKey) {
+  const stateId = StateId.fromPartial({
+    appVersion: metadata.protocolVersion,
+    coreChainLockedHeight: metadata.coreChainLockedHeight,
+    time: metadata.timeMs,
+    appHash: rootHash,
+    height: metadata.height
+  })
 
-    const rootHash = await getRootHashForIdentityBalance(proof.grovedbProof, identifier)
-    const {quorumPublicKey} = await getQuorumPublicKey(proof.quorumType, Buffer.from(proof.quorumHash).toString('hex'))
-    // const quorumPublicKey = Buffer.from([146,179,221,176,228,83,16,94,56,58,240,28,24,241,103,124,92,162,142,234,70,150,62,81,183,212,194,253,70,6,11,9,240,111,136,18,90,95,162,1,126,255,149,235,22,114,174,209]).toString('hex')
+  const stateIdHash = calculateStateIdHash(stateId)
 
-    const verify = await verifyTenderdashProof(proof, metadata, rootHash, quorumPublicKey)
+  const commit = CanonicalVote.fromPartial({
+    type: SignedMsgType.PRECOMMIT,
+    blockId: proof.blockIdHash,
+    chainId: metadata.chainId,
+    height: BigInt(metadata.height),
+    round: proof.round,
+    stateId: stateIdHash
+  })
 
-    console.log(verify)
+  const signDigest = calculateSignHash(
+    commit,
+    metadata.chainId,
+    proof.quorumType,
+    proof.quorumHash,
+    BigInt(metadata.height),
+    proof.round,
+    SignedMsgType.PRECOMMIT,
+    proof.blockIdHash,
+    stateIdHash
+  )
+
+  const { signature } = proof
+
+  const BLS = await loadBls()
+
+  const pubKey = BLS.G1Element.fromBytes(Buffer.from(quorumPublicKey, 'hex'))
+
+  const signatureElement = BLS.G2Element.fromBytes(signature)
+
+  return BLS.BasicSchemeMPL.verify(pubKey, Uint8Array.from(signDigest), signatureElement)
+}
+
+async function main () {
+  initSync({ module: fs.readFileSync('./pkg/wasm/wasm_drive_verify_bg.wasm') })
+
+  const identifier = '8VKxmxaJpBetf372woNKu1znvGFg7iauBM1EynT6GF2h'
+
+  const { proof, metadata } = await getIdentityBalanceProof(identifier)
+
+  const rootHash = await getRootHashForIdentityBalance(proof.grovedbProof, identifier)
+  const { quorumPublicKey } = await getQuorumPublicKey(proof.quorumType, Buffer.from(proof.quorumHash).toString('hex'))
+
+  const verify = await verifyTenderdashProof(proof, metadata, rootHash, quorumPublicKey)
+
+  console.log(verify)
 }
 
 main().catch(console.error)
