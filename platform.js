@@ -16592,19 +16592,19 @@ exports.StateId = {
     encode: function (message, writer) {
         if (writer === void 0) { writer = new wire_1.BinaryWriter(); }
         if (message.appVersion !== "0") {
-            writer.uint32(8).uint64(message.appVersion);
+            writer.uint32(9).fixed64(message.appVersion);
         }
         if (message.height !== "0") {
-            writer.uint32(16).uint64(message.height);
+            writer.uint32(17).fixed64(message.height);
         }
         if (message.appHash.length !== 0) {
             writer.uint32(26).bytes(message.appHash);
         }
         if (message.coreChainLockedHeight !== 0) {
-            writer.uint32(32).uint32(message.coreChainLockedHeight);
+            writer.uint32(37).fixed32(message.coreChainLockedHeight);
         }
         if (message.time !== "0") {
-            writer.uint32(40).uint64(message.time);
+            writer.uint32(41).fixed64(message.time);
         }
         return writer;
     },
@@ -16616,17 +16616,17 @@ exports.StateId = {
             var tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1: {
-                    if (tag !== 8) {
+                    if (tag !== 9) {
                         break;
                     }
-                    message.appVersion = reader.uint64().toString();
+                    message.appVersion = reader.fixed64().toString();
                     continue;
                 }
                 case 2: {
-                    if (tag !== 16) {
+                    if (tag !== 17) {
                         break;
                     }
-                    message.height = reader.uint64().toString();
+                    message.height = reader.fixed64().toString();
                     continue;
                 }
                 case 3: {
@@ -16637,17 +16637,17 @@ exports.StateId = {
                     continue;
                 }
                 case 4: {
-                    if (tag !== 32) {
+                    if (tag !== 37) {
                         break;
                     }
-                    message.coreChainLockedHeight = reader.uint32();
+                    message.coreChainLockedHeight = reader.fixed32();
                     continue;
                 }
                 case 5: {
-                    if (tag !== 40) {
+                    if (tag !== 41) {
                         break;
                     }
-                    message.time = reader.uint64().toString();
+                    message.time = reader.fixed64().toString();
                     continue;
                 }
             }
@@ -16682,10 +16682,10 @@ exports.CanonicalVote = {
             writer.uint32(8).int32(message.type);
         }
         if (message.height !== "0") {
-            writer.uint32(16).uint64(message.height);
+            writer.uint32(17).sfixed64(message.height);
         }
         if (message.round !== "0") {
-            writer.uint32(24).uint64(message.round);
+            writer.uint32(25).sfixed64(message.round);
         }
         if (message.blockId.length !== 0) {
             writer.uint32(34).bytes(message.blockId);
@@ -16713,17 +16713,17 @@ exports.CanonicalVote = {
                     continue;
                 }
                 case 2: {
-                    if (tag !== 16) {
+                    if (tag !== 17) {
                         break;
                     }
-                    message.height = reader.uint64().toString();
+                    message.height = reader.sfixed64().toString();
                     continue;
                 }
                 case 3: {
-                    if (tag !== 24) {
+                    if (tag !== 25) {
                         break;
                     }
-                    message.round = reader.uint64().toString();
+                    message.round = reader.sfixed64().toString();
                     continue;
                 }
                 case 4: {

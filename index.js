@@ -26,7 +26,7 @@ async function getIdentityBalanceProof(identifier) {
 }
 
 async function getRootHashForIdentityBalance(grovedbProof, identifier) {
-    const {root_hash: rootHash} = verifyIdentityBalanceForIdentityId(grovedbProof, base58.decode(identifier), false, 1)
+    const {root_hash: rootHash} = verifyIdentityBalanceForIdentityId(grovedbProof, base58.decode(identifier), true, 1)
 
     return rootHash
 }
@@ -59,7 +59,6 @@ function calculateStateIdHash(stateId) {
 
     const writer = new wire.BinaryWriter();
 
-    writer.uint32(StateId.encode(stateId).buf.length);
     writer.bytes(encoded);
 
     return sha256(writer.finish(), {asBytes: true});
@@ -110,6 +109,7 @@ function calculateMsgHash(chainId, height, round, type, blockId, stateId) {
 
 function signHash(quorumType, quorumHash, requestId, signBytesHash) {
     const buf = Buffer.concat([
+        Buffer.from([quorumType]),
         Buffer.from(quorumHash).reverse(),
         Buffer.from(requestId).reverse(),
         Buffer.from(signBytesHash).reverse(),
@@ -178,6 +178,7 @@ async function main() {
 
     const rootHash = await getRootHashForIdentityBalance(proof.grovedbProof, identifier)
     const {quorumPublicKey} = await getQuorumPublicKey(proof.quorumType, Buffer.from(proof.quorumHash).toString('hex'))
+    // const quorumPublicKey = Buffer.from([146,179,221,176,228,83,16,94,56,58,240,28,24,241,103,124,92,162,142,234,70,150,62,81,183,212,194,253,70,6,11,9,240,111,136,18,90,95,162,1,126,255,149,235,22,114,174,209]).toString('hex')
 
     const verify = await verifyTenderdashProof(proof, metadata, rootHash, quorumPublicKey)
 
