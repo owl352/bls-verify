@@ -1,11 +1,11 @@
 const loadBls = require('@dashevo/bls')
 const { GetIdentityBalanceRequest, PlatformDefinition, StateId, CanonicalVote, SignedMsgType } = require('./platform.js')
-const { createChannel, createClient } = require ('nice-grpc-web')
+const { createChannel, createClient } = require('nice-grpc-web')
 const { base58 } = require('@scure/base')
 const fs = require('fs')
 const { verifyIdentityBalanceForIdentityId, initSync } = require('./pkg')
-const wire = require('@bufbuild/protobuf/wire');
-const sha256 = require('sha256');
+const wire = require('@bufbuild/protobuf/wire')
+const sha256 = require('sha256')
 
 async function getIdentityBalanceProof (identifier) {
   const channel = createChannel('https://52.42.202.128:1443/')

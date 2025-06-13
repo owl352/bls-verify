@@ -5,7 +5,7 @@ const __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, '__esModule', { value: true })
 exports.Identifier = void 0
 const bs58_1 = __importDefault(require('bs58'))
-const IdentifierError_1 = __importDefault(require('./errors/IdentifierError'))
+const IdentifierError_1 = __importDefault(require('./errors/IdentifierError.cjs'))
 /**
  * @param {Buffer} buffer
  * @returns {Identifier}

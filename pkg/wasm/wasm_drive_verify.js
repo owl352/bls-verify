@@ -1,4 +1,4 @@
-import { default as default1 } from '../identifier/Identifier.js'
+import default1 from '../identifier/Identifier.cjs'
 import { set } from 'lodash-es'
 
 let wasm
