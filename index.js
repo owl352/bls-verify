@@ -1,11 +1,11 @@
-import loadBls from '@dashevo/bls'
-import { GetIdentityBalanceRequest, PlatformDefinition, StateId, CanonicalVote, SignedMsgType } from './platform.js'
-import { createChannel, createClient } from 'nice-grpc-web'
-import { base58 } from '@scure/base'
-import fs from 'fs'
-import { verifyIdentityBalanceForIdentityId, initSync } from './pkg/wasm/wasm_drive_verify.js'
-import * as wire from '@bufbuild/protobuf/wire'
-import sha256 from 'sha256'
+const loadBls = require('@dashevo/bls')
+const { GetIdentityBalanceRequest, PlatformDefinition, StateId, CanonicalVote, SignedMsgType } = require('./platform.js')
+const { createChannel, createClient } = require ('nice-grpc-web')
+const { base58 } = require('@scure/base')
+const fs = require('fs')
+const { verifyIdentityBalanceForIdentityId, initSync } = require('./pkg')
+const wire = require('@bufbuild/protobuf/wire');
+const sha256 = require('sha256');
 
 async function getIdentityBalanceProof (identifier) {
   const channel = createChannel('https://52.42.202.128:1443/')
